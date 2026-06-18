@@ -9,6 +9,24 @@ ingest:
   country: us
   output_path: data/soundcloud_reviews.jsonl
 
+# Applied after ingest, before extraction. country='us' above keeps the
+# US-storefront scope unchanged; this is purely about review text language.
+# Dropped reviews are NOT deleted - they go to dropped_path with the detected
+# language and confidence appended so the filter is auditable.
+language_filter:
+  language: en
+  # Drop a review only when lingua is AT LEAST this confident that the top
+  # detected language is not the target. Below this, default to keep - lingua's
+  # confidence on 1-5 word reviews is often 0.05-0.20 even when the review is
+  # clearly English, so a "must be confidently target to keep" rule over-drops
+  # short feedback. Confident non-English (typically 0.8-1.0 on full-sentence
+  # Portuguese / Vietnamese / Spanish / etc.) still gets dropped.
+  # Tune lower for more aggressive dropping; tune higher to keep more.
+  min_confidence: 0.5
+  input_path: data/soundcloud_reviews.jsonl
+  output_path: data/soundcloud_reviews_en.jsonl
+  dropped_path: data/non_english_reviews.jsonl
+
 extract:
   # Open-weight model hosted on Cerebras. Tool-calling via the OpenAI-shape
   # API. The Cerebras key lives in .env (CEREBRAS_API_KEY).
@@ -16,7 +34,7 @@ extract:
   max_completion_tokens: 1024
   temperature: 0.0
   cache_dir: data/extraction_cache
-  input_path: data/soundcloud_reviews.jsonl
+  input_path: data/soundcloud_reviews_en.jsonl
   output_path: data/extracted_issues.jsonl
   sample_size: 20   # for the stage-3 smoke test; full run ignores this
 

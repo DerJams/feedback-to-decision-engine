@@ -1,4 +1,5 @@
 cerebras-cloud-sdk
 google-play-scraper
+lingua-language-detector
 pyyaml
 python-dotenv
