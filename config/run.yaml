@@ -10,9 +10,10 @@ ingest:
   output_path: data/soundcloud_reviews.jsonl
 
 extract:
-  # Model id chosen for cost/quality balance on short structured tasks.
-  model: claude-sonnet-4-6
-  max_tokens: 1024
+  # Open-weight model hosted on Cerebras. Tool-calling via the OpenAI-shape
+  # API. The Cerebras key lives in .env (CEREBRAS_API_KEY).
+  model: gpt-oss-120b
+  max_completion_tokens: 1024
   temperature: 0.0
   cache_dir: data/extraction_cache
   input_path: data/soundcloud_reviews.jsonl

@@ -11,9 +11,11 @@ and judgment in code you can audit.
 
 1. **Ingest** &mdash; pulls newest reviews for a target app (default: SoundCloud
    Android) into normalized JSONL.
-2. **Extract** &mdash; runs each review through Claude against a neutral schema
-   (`theme`, `severity`, `sentiment`, `feature_area`, `segment_hint`). Results
-   are cached on disk so scoring can be iterated without re-spending API calls.
+2. **Extract** &mdash; runs each review through an LLM (Cerebras-hosted
+   `gpt-oss-120b`) against a neutral schema (`theme`, `severity`, `sentiment`,
+   `feature_area`, `segment_hint`). Schema validation happens at the API
+   boundary via tool-calling, so enum compliance is free. Results are cached
+   on disk so scoring can be iterated without re-spending API calls.
 3. **Cluster** &mdash; dedupes and groups extracted issues into themes.
 4. **Score** &mdash; ranks themes by a config-driven weighting (frequency,
    severity, strategic fit). The weights live in `config/weights.yaml` so the
@@ -53,7 +55,7 @@ data/     gitignored - reviews, cached extractions, run outputs
 python -m venv .venv
 .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-Copy-Item .env.example .env   # then set ANTHROPIC_API_KEY
+Copy-Item .env.example .env   # then set CEREBRAS_API_KEY
 ```
 
 ## Worked example

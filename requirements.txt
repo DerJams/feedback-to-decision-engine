@@ -1,4 +1,4 @@
-anthropic
+cerebras-cloud-sdk
 google-play-scraper
 pyyaml
 python-dotenv
