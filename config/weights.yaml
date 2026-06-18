@@ -1,0 +1,31 @@
+# Theme scoring weights. The score for a theme is:
+#   score = frequency_weight * normalized_frequency
+#         + severity_weight  * mean_severity
+#         + strategic_weight * strategic_fit(feature_area)
+#
+# Edit these and re-run `score/` to see the ranking move. The weights are the
+# whole point of the legibility argument - if the brief reads suspiciously, the
+# reader can audit the weights, not reverse-engineer a black box.
+
+weights:
+  frequency: 0.40
+  severity: 0.40
+  strategic_fit: 0.20
+
+# Maps the schema's severity enum onto a numeric scale used in scoring.
+severity_scale:
+  low: 1
+  medium: 2
+  high: 3
+
+# Per-feature-area strategic fit multiplier in [0, 1]. Tune to reflect your
+# read of where the product team should be spending cycles. The README's
+# "what I'd do" section reasons from these numbers, so they should match how
+# you would actually argue priorities in a room.
+strategic_fit:
+  core_listening: 1.0
+  discovery: 0.8
+  social: 0.6
+  monetization: 0.5
+  account: 0.4
+  other: 0.3

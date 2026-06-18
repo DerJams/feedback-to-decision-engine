@@ -1,0 +1,30 @@
+# Run-wide settings. Paths are relative to the repo root.
+# Override any of these at the CLI in the module that consumes them.
+
+ingest:
+  app_id: com.soundcloud.android
+  default_count: 3000
+  page_delay_seconds: 1.5
+  lang: en
+  country: us
+  output_path: data/soundcloud_reviews.jsonl
+
+extract:
+  # Model id chosen for cost/quality balance on short structured tasks.
+  model: claude-sonnet-4-6
+  max_tokens: 1024
+  temperature: 0.0
+  cache_dir: data/extraction_cache
+  input_path: data/soundcloud_reviews.jsonl
+  output_path: data/extracted_issues.jsonl
+  sample_size: 20   # for the stage-3 smoke test; full run ignores this
+
+cluster:
+  output_path: data/clusters.jsonl
+
+score:
+  output_path: data/scored_themes.jsonl
+
+brief:
+  output_path: brief/opportunity_brief.md
+  prd_output_path: brief/top_theme_prd.md

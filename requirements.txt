@@ -1,0 +1,4 @@
+anthropic
+google-play-scraper
+pyyaml
+python-dotenv

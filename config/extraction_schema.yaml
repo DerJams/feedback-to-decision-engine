@@ -1,0 +1,43 @@
+# Extraction schema. The extractor pulls a list of issue objects from each
+# review using ONLY these fields. The prompt does not name specific complaints,
+# features, bugs, or product areas - real problems must surface from reviewer
+# language, not from anything the prompt suggests.
+#
+# If you find yourself wanting to add "watch for X" to this file, don't. Add a
+# new eval case to evals/ instead, and let the open extraction find it.
+
+fields:
+  theme:
+    type: string
+    description: >
+      Short noun phrase naming the user's concern. Specific enough to be
+      actionable, general enough to cluster across reviews. Lowercase, no
+      trailing punctuation. Examples of shape (not content): "<noun> <verb>s
+      after <event>", "missing <noun>", "<noun> on <surface>".
+  severity:
+    type: enum
+    values: [low, medium, high]
+    description: >
+      How much this issue degrades the user's experience as expressed in this
+      review. "high" = blocks core use or causes the user to consider leaving.
+      "medium" = repeated friction. "low" = minor annoyance.
+  sentiment:
+    type: enum
+    values: [positive, neutral, negative]
+    description: The reviewer's affect toward the theme in this review.
+  feature_area:
+    type: enum
+    values: [core_listening, discovery, social, monetization, account, other]
+    description: >
+      Which surface of the product the theme touches. Use "other" rather than
+      forcing a fit.
+  segment_hint:
+    type: string
+    description: >
+      Free-text hint at the user segment if implied by the review (e.g.
+      "podcast listener", "creator", "free-tier", "long-time user"). Empty
+      string if not implied. Do not infer demographics from rating alone.
+
+extraction:
+  max_issues_per_review: 4
+  allow_empty: true   # If a review has no extractable issues, return [].
