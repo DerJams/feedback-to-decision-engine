@@ -1,4 +1,4 @@
-cerebras-cloud-sdk
+anthropic
 google-play-scraper
 lingua-language-detector
 pyyaml

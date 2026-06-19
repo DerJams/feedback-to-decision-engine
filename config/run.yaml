@@ -28,10 +28,10 @@ language_filter:
   dropped_path: data/non_english_reviews.jsonl
 
 extract:
-  # Open-weight model hosted on Cerebras. Tool-calling via the OpenAI-shape
-  # API. The Cerebras key lives in .env (CEREBRAS_API_KEY).
-  model: gpt-oss-120b
-  max_completion_tokens: 1024
+  # Claude Haiku 4.5 via the Anthropic API. Tool-calling enforces the YAML
+  # schema's enums at the API boundary. The key lives in .env (ANTHROPIC_API_KEY).
+  model: claude-haiku-4-5
+  max_tokens: 1024
   temperature: 0.0
   cache_dir: data/extraction_cache
   input_path: data/soundcloud_reviews_en.jsonl

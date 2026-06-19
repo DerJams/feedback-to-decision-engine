@@ -21,6 +21,9 @@ dist/
 data/
 extraction_cache/
 
+# Run logs
+*.log
+
 # IDE / OS
 .vscode/
 .idea/

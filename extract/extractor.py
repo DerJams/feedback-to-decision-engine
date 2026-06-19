@@ -8,9 +8,10 @@ prompt below stays short, the schema lives in YAML you can read in one sitting,
 and both are hashed into the cache key so any change automatically invalidates
 prior extractions.
 
-Backend: Cerebras-hosted gpt-oss-120b via OpenAI-shape function calling. The
-schema is enforced at the API boundary, which means we don't need a separate
-JSON-validation step on the returned arguments.
+Backend: Anthropic Claude (Haiku 4.5) via the Anthropic SDK. The YAML schema is
+translated into an Anthropic tool definition; the API enforces enum constraints
+at the tool boundary, so no client-side validation is needed on the returned
+arguments.
 
 Results are cached on disk so downstream scoring iteration doesn't re-spend
 API calls. Cache layout:
@@ -28,7 +29,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from cerebras.cloud.sdk import Cerebras
+from anthropic import Anthropic
 from dotenv import load_dotenv
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -53,7 +54,7 @@ Rules:
 @dataclass(frozen=True)
 class ExtractConfig:
     model: str
-    max_completion_tokens: int
+    max_tokens: int
     temperature: float
     cache_dir: Path
     input_path: Path
@@ -66,7 +67,7 @@ def load_extract_config(path: Path = RUN_CONFIG_PATH) -> ExtractConfig:
     ex = raw["extract"]
     return ExtractConfig(
         model=ex["model"],
-        max_completion_tokens=int(ex["max_completion_tokens"]),
+        max_tokens=int(ex["max_tokens"]),
         temperature=float(ex["temperature"]),
         cache_dir=REPO_ROOT / ex["cache_dir"],
         input_path=REPO_ROOT / ex["input_path"],
@@ -76,7 +77,7 @@ def load_extract_config(path: Path = RUN_CONFIG_PATH) -> ExtractConfig:
 
 
 def build_tool_definition(schema: dict) -> dict:
-    """Translate the YAML extraction schema into an OpenAI-shape tool definition.
+    """Translate the YAML extraction schema into an Anthropic tool definition.
 
     Going through tool calling means the API enforces enum constraints for us:
     the model cannot return "kinda-medium" for severity. That removes a whole
@@ -97,25 +98,22 @@ def build_tool_definition(schema: dict) -> dict:
 
     max_issues = int(schema["extraction"]["max_issues_per_review"])
     return {
-        "type": "function",
-        "function": {
-            "name": "record_issues",
-            "description": "Record the distinct concerns raised in the review.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "issues": {
-                        "type": "array",
-                        "maxItems": max_issues,
-                        "items": {
-                            "type": "object",
-                            "properties": issue_properties,
-                            "required": required,
-                        },
-                    }
-                },
-                "required": ["issues"],
+        "name": "record_issues",
+        "description": "Record the distinct concerns raised in the review.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "issues": {
+                    "type": "array",
+                    "maxItems": max_issues,
+                    "items": {
+                        "type": "object",
+                        "properties": issue_properties,
+                        "required": required,
+                    },
+                }
             },
+            "required": ["issues"],
         },
     }
 
@@ -139,18 +137,22 @@ def compute_cache_key(model: str, system_prompt: str, schema_yaml_text: str) -> 
 class Extractor:
     def __init__(self, config: ExtractConfig | None = None) -> None:
         load_dotenv(REPO_ROOT / ".env")
-        if not os.environ.get("CEREBRAS_API_KEY"):
+        if not os.environ.get("ANTHROPIC_API_KEY"):
             raise RuntimeError(
-                "CEREBRAS_API_KEY is not set. Copy .env.example to .env and add your key."
+                "ANTHROPIC_API_KEY is not set. Copy .env.example to .env and add your key."
             )
         self.config = config or load_extract_config()
         schema_text = SCHEMA_PATH.read_text(encoding="utf-8")
         self.schema = yaml.safe_load(schema_text)
         self.tool = build_tool_definition(self.schema)
+        # Anthropic enforces enums and required fields at the tool boundary, but
+        # not array maxItems - cap on our side so per-review counts are bounded
+        # regardless of what the model returns.
+        self.max_issues = int(self.schema["extraction"]["max_issues_per_review"])
         self.cache_key = compute_cache_key(self.config.model, SYSTEM_PROMPT, schema_text)
         self.cache_root = self.config.cache_dir / self.cache_key
         self.cache_root.mkdir(parents=True, exist_ok=True)
-        self.client = Cerebras()
+        self.client = Anthropic()
 
     def extract(self, review: dict, use_cache: bool = True) -> dict:
         """Return {review_id, model, issues, extracted_at, cached} for one review."""
@@ -158,22 +160,27 @@ class Extractor:
         cache_file = self.cache_root / f"{review_id}.json"
         if use_cache and cache_file.exists():
             data = json.loads(cache_file.read_text(encoding="utf-8"))
+            data["issues"] = data["issues"][: self.max_issues]
             data["cached"] = True
             return data
 
-        response = self.client.chat.completions.create(
+        response = self.client.messages.create(
             model=self.config.model,
-            max_completion_tokens=self.config.max_completion_tokens,
+            max_tokens=self.config.max_tokens,
             temperature=self.config.temperature,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": f"Review:\n{review['text']}"},
+            system=[
+                {
+                    "type": "text",
+                    "text": SYSTEM_PROMPT,
+                    "cache_control": {"type": "ephemeral"},
+                }
             ],
+            messages=[{"role": "user", "content": f"Review:\n{review['text']}"}],
             tools=[self.tool],
-            tool_choice={"type": "function", "function": {"name": "record_issues"}},
+            tool_choice={"type": "tool", "name": "record_issues"},
         )
 
-        issues = self._tool_output(response)
+        issues = self._tool_output(response)[: self.max_issues]
         record = {
             "review_id": review_id,
             "model": self.config.model,
@@ -188,10 +195,7 @@ class Extractor:
 
     @staticmethod
     def _tool_output(response: Any) -> list[dict]:
-        message = response.choices[0].message
-        tool_calls = getattr(message, "tool_calls", None) or []
-        for call in tool_calls:
-            if call.function.name == "record_issues":
-                args = json.loads(call.function.arguments or "{}")
-                return list(args.get("issues", []))
+        for block in response.content:
+            if block.type == "tool_use" and block.name == "record_issues":
+                return list(block.input.get("issues", []))
         raise RuntimeError("Model returned no record_issues tool call")
