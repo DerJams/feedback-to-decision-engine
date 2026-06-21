@@ -3,3 +3,5 @@ google-play-scraper
 lingua-language-detector
 pyyaml
 python-dotenv
+sentence-transformers
+scikit-learn

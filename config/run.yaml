@@ -39,6 +39,22 @@ extract:
   sample_size: 20   # for the stage-3 smoke test; full run ignores this
 
 cluster:
+  # Local-only embeddings (no API calls). all-MiniLM-L6-v2 is small (~80MB),
+  # 384-dim, and well-calibrated for short noun phrases like extraction themes.
+  embedding_model: sentence-transformers/all-MiniLM-L6-v2
+
+  # Issues partitioned by sentiment first so positive themes ("no ads, love it")
+  # cannot land in negative clusters ("excessive ads"). Within each sentiment
+  # partition, agglomerative clustering with cosine distance is cut at the
+  # threshold below. Higher similarity_threshold -> tighter clusters; lower ->
+  # more aggressive merging.
+  similarity_threshold: 0.45
+
+  # Clusters smaller than this are split out to noise/singletons and excluded
+  # from the main clusters file. Tune lower to surface long-tail themes.
+  min_cluster_size: 3
+
+  input_path: data/extracted_issues.jsonl
   output_path: data/clusters.jsonl
 
 score:
