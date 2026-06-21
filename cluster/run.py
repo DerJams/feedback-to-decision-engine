@@ -13,8 +13,10 @@ than `min_cluster_size` (config) are dropped from the main output to noise.
 Every cluster keeps the full per-issue records of its members (review_id,
 severity, sentiment, feature_area, segment_hint, original theme) so the
 scoring stage can read all the source fields back without rejoining against
-extracted_issues.jsonl. Each cluster is labeled with its medoid theme - the
-member theme string whose embedding is closest to the cluster centroid - so
+extracted_issues.jsonl. Each member also gets a `centroid_sim` field - its
+cosine similarity to the cluster centroid - so the brief stage can rank
+quotes by representativeness without re-embedding. Each cluster is labeled
+with its medoid theme - the member with the highest centroid_sim - so
 labels reflect the cluster's semantic center rather than rewarding cosmetic
 phrasing collisions. No LLM call.
 
@@ -131,21 +133,18 @@ def cluster_partition(
     return list(buckets.values())
 
 
-def medoid_label(members: list[dict], member_embeddings: np.ndarray) -> str:
-    """Return the theme string of the member closest to the cluster centroid.
+def compute_centroid_sims(member_embeddings: np.ndarray) -> np.ndarray:
+    """Cosine similarity of each member embedding to the cluster centroid.
 
-    Normalize first so a plain dot product gives cosine similarity, matching
-    the metric used for clustering. The medoid is the member with the highest
-    cosine similarity to the (normalized) centroid - i.e. the theme phrasing
-    that best represents the cluster's semantic center. Ties (rare with
-    float32) break on input order via argmax.
+    Members are L2-normalized, the centroid is the mean of those normalized
+    vectors (then normalized again), so a plain dot product yields cosine
+    similarity. This matches the metric used by the clustering itself.
     """
     norms = np.linalg.norm(member_embeddings, axis=1, keepdims=True)
     normed = member_embeddings / np.clip(norms, 1e-12, None)
     centroid = normed.mean(axis=0)
     centroid /= max(float(np.linalg.norm(centroid)), 1e-12)
-    sims = normed @ centroid
-    return members[int(np.argmax(sims))]["theme"]
+    return normed @ centroid
 
 
 def build_cluster_record(
@@ -154,26 +153,38 @@ def build_cluster_record(
     members: list[dict],
     member_embeddings: np.ndarray,
 ) -> dict:
-    """One JSONL record per cluster. Members carry full per-issue context."""
-    theme_counts = Counter(m["theme"] for m in members)
-    label = medoid_label(members, member_embeddings)
+    """One JSONL record per cluster. Members carry full per-issue context.
 
-    severity_breakdown = dict(Counter(m["severity"] for m in members))
-    feature_area_breakdown = dict(Counter(m["feature_area"] for m in members))
+    Each member is annotated with `centroid_sim` - its cosine similarity to
+    the cluster centroid - so downstream consumers (quote selection in the
+    brief, in particular) can rank members by representativeness without
+    re-embedding. The medoid label is picked from the same sims, so the
+    member with centroid_sim == max(...) is also the labelled medoid.
+    """
+    sims = compute_centroid_sims(member_embeddings)
+    annotated_members = [
+        {**m, "centroid_sim": float(s)} for m, s in zip(members, sims)
+    ]
+    medoid_idx = int(np.argmax(sims))
+    label = annotated_members[medoid_idx]["theme"]
+
+    theme_counts = Counter(m["theme"] for m in annotated_members)
+    severity_breakdown = dict(Counter(m["severity"] for m in annotated_members))
+    feature_area_breakdown = dict(Counter(m["feature_area"] for m in annotated_members))
     # Trivially 100% one bucket because of the sentiment partition; reported
     # anyway as confirmation that the constraint held end-to-end.
-    sentiment_breakdown = dict(Counter(m["sentiment"] for m in members))
+    sentiment_breakdown = dict(Counter(m["sentiment"] for m in annotated_members))
 
     return {
         "cluster_id": cluster_id,
         "label": label,
         "sentiment": sentiment,
-        "size": len(members),
+        "size": len(annotated_members),
         "unique_themes": len(theme_counts),
         "sentiment_breakdown": sentiment_breakdown,
         "severity_breakdown": severity_breakdown,
         "feature_area_breakdown": feature_area_breakdown,
-        "members": members,
+        "members": annotated_members,
     }
 
 
