@@ -58,6 +58,10 @@ cluster:
   output_path: data/clusters.jsonl
 
 score:
+  # Local-only. Reads clusters and config/weights.yaml; produces a ranked
+  # JSONL with a per-cluster contribution breakdown so the ranking is
+  # auditable (frequency / severity / strategic_fit shown separately).
+  input_path: data/clusters.jsonl
   output_path: data/scored_themes.jsonl
 
 brief:
