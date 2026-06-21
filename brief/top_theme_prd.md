@@ -14,11 +14,11 @@ On SoundCloud Android, playback is frequently interrupted mid-song without user 
 
 **Representative verbatim quotes** (centroid_sim &ge; 0.82, cited by review_id):
 
-> "Constantly pausing in the middle of songs" &mdash; review `09c43170-988c-43d6-b7e0-d0c7982bc80a` (1★) _(sim 0.87)_
+> "Constantly pausing in the middle of songs" - review `09c43170-988c-43d6-b7e0-d0c7982bc80a` (1★) _(sim 0.87)_
 >
-> "U cannot even listen to a single song anymore...it will stop randomly..just so u buy premium and it will not stop anymore...from the best music FREE app, it became the WORST MUSIC PAID APP...do not install" &mdash; review `168a9227-c19e-45f4-bfa0-5ae8b8103172` (1★) _(sim 0.86)_
+> "U cannot even listen to a single song anymore...it will stop randomly..just so u buy premium and it will not stop anymore...from the best music FREE app, it became the WORST MUSIC PAID APP...do not install" - review `168a9227-c19e-45f4-bfa0-5ae8b8103172` (1★) _(sim 0.86)_
 >
-> "I like it but every time I try to listen to music now after the last update it keeps skipping" &mdash; review `2d9614f2-5643-4d42-a384-0efa78b5f940` (1★) _(sim 0.85)_
+> "I like it but every time I try to listen to music now after the last update it keeps skipping" - review `2d9614f2-5643-4d42-a384-0efa78b5f940` (1★) _(sim 0.85)_
 
 ## 3. Why now
 

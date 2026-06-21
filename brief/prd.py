@@ -150,7 +150,7 @@ def render_prd(
             star = f" ({rating}★)" if isinstance(rating, int) else ""
             lines.append(
                 f"> \"{format_quote_text(q['text'])}\" "
-                f"&mdash; review `{q['review_id']}`{star} "
+                f"- review `{q['review_id']}`{star} "
                 f"_(sim {q['centroid_sim']:.2f})_"
             )
             lines.append(">")

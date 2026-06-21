@@ -417,7 +417,7 @@ def render_brief(
                 star = f" ({rating}★)" if isinstance(rating, int) else ""
                 lines.append(
                     f"> \"{format_quote_text(q['text'])}\" "
-                    f"&mdash; review `{q['review_id']}`{star}"
+                    f"- review `{q['review_id']}`{star}"
                 )
                 lines.append(">")
             # Drop the trailing empty blockquote line
