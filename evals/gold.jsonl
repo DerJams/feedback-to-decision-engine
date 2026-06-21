@@ -1,0 +1,50 @@
+{"review_id": "b1be5516-ce20-4fba-9a37-49989f431c3d", "has_issue": true, "issues": [{"feature_area": "core_listening", "severity": "high", "desc": ""}]}
+{"review_id": "ab831ca8-428b-4cad-95d5-4742e16c935f", "has_issue": true, "issues": [{"feature_area": "account", "severity": "high", "desc": ""}]}
+{"review_id": "69606c06-7b25-4106-9caf-9489a687617b", "has_issue": false, "issues": []}
+{"review_id": "76a4e2e0-dcad-4fb6-a981-7e3a27342cbd", "has_issue": true, "issues": [{"feature_area": "monetization", "severity": "medium", "desc": ""}]}
+{"review_id": "9f1ef3b9-ff82-4b17-b864-81ac27b8ebbc", "has_issue": true, "issues": [{"feature_area": "core_listening", "severity": "high", "desc": ""}]}
+{"review_id": "2678535d-5db4-4bd0-bbb9-f97c062b6775", "has_issue": true, "issues": [{"feature_area": "social", "severity": "low", "desc": ""}]}
+{"review_id": "2022efd2-ed79-40ab-8b7b-9c4eacdf4207", "has_issue": true, "issues": [{"feature_area": "core_listening", "severity": "low", "desc": ""}]}
+{"review_id": "f21651fb-5a19-43f5-b909-00d4e7301bed", "has_issue": true, "issues": [{"feature_area": "other", "severity": "high", "desc": "App functionality"}]}
+{"review_id": "0bd320d9-3e6c-4cee-b497-6909d1bc6058", "has_issue": false, "issues": []}
+{"review_id": "dd91db2a-05b1-44fe-be84-63146c42d6e4", "has_issue": true, "issues": [{"feature_area": "account", "severity": "high", "desc": ""}]}
+{"review_id": "f20e5e16-9eb9-43aa-a298-efdfbd51c24e", "has_issue": false, "issues": []}
+{"review_id": "bf633c1d-4045-4494-9f95-2eee096335a9", "has_issue": true, "issues": [{"feature_area": "core_listening", "severity": "low", "desc": ""}]}
+{"review_id": "6e85c81c-0858-493a-a179-77b9dba9a854", "has_issue": true, "issues": [{"feature_area": "other", "severity": "high", "desc": "App functionality"}]}
+{"review_id": "c21fa4f5-942e-4fe1-abea-f9f3040c7db9", "has_issue": true, "issues": [{"feature_area": "core_listening", "severity": "high", "desc": ""}]}
+{"review_id": "34f62ec2-224b-48c5-be5a-8a92e8d33719", "has_issue": false, "issues": []}
+{"review_id": "8774ab6b-81e2-48f8-98f4-2b8e19696577", "has_issue": true, "issues": [{"feature_area": "account", "severity": "low", "desc": ""}]}
+{"review_id": "5e6566a1-ae68-4016-9123-a9c97384b228", "has_issue": false, "issues": []}
+{"review_id": "9e4fd3fd-1292-4d4f-a2ff-3f1daa48bac8", "has_issue": true, "issues": [{"feature_area": "monetization", "severity": "high", "desc": ""}]}
+{"review_id": "d8039a77-2fa8-48aa-ad75-68385f97d890", "has_issue": true, "issues": [{"feature_area": "other", "severity": "high", "desc": "App functionality"}]}
+{"review_id": "a210e202-0458-491b-b290-39c7e6363a7d", "has_issue": false, "issues": []}
+{"review_id": "12ba2be2-a716-47e5-b93e-afb82e3719e7", "has_issue": true, "issues": [{"feature_area": "core_listening", "severity": "medium", "desc": ""}]}
+{"review_id": "5f4ded36-9f17-433a-9a01-da0b1cc34c13", "has_issue": true, "issues": [{"feature_area": "other", "severity": "high", "desc": "App functionality"}]}
+{"review_id": "7b448aa9-6aab-4dba-bd66-cf97954d4c29", "has_issue": false, "issues": []}
+{"review_id": "84070ec4-f68d-470c-9b48-68a1eaf63c03", "has_issue": true, "issues": [{"feature_area": "monetization", "severity": "high", "desc": ""}]}
+{"review_id": "fba78762-2563-485f-a044-baa1602b7444", "has_issue": true, "issues": [{"feature_area": "core_listening", "severity": "low", "desc": "App functionality"}]}
+{"review_id": "89ac06eb-5fc0-4435-86cf-bcf53f582758", "has_issue": true, "issues": [{"feature_area": "other", "severity": "low", "desc": "App functionality"}]}
+{"review_id": "b95640b6-7089-493f-be9a-b9df038e5e5a", "has_issue": false, "issues": []}
+{"review_id": "68b5998a-3205-48db-83a7-a4d990db2b23", "has_issue": true, "issues": [{"feature_area": "core_listening", "severity": "high", "desc": ""}]}
+{"review_id": "b50bd447-722d-4f26-9780-8012f4140849", "has_issue": true, "issues": [{"feature_area": "core_listening", "severity": "low", "desc": "App functionality"}]}
+{"review_id": "c0664474-668d-4ed2-bfa2-205406804216", "has_issue": false, "issues": []}
+{"review_id": "322ee689-0f42-4cf7-a53f-4a5aad51ef82", "has_issue": true, "issues": [{"feature_area": "account", "severity": "medium", "desc": ""}]}
+{"review_id": "edf7c356-3965-4600-b451-db5560346086", "has_issue": true, "issues": [{"feature_area": "account", "severity": "high", "desc": ""}]}
+{"review_id": "d5e04e31-f59a-4792-b1cc-75ebf94a404b", "has_issue": true, "issues": [{"feature_area": "core_listening", "severity": "low", "desc": ""}]}
+{"review_id": "df7f85ca-f555-4331-8af5-423aa832f9e1", "has_issue": true, "issues": [{"feature_area": "monetization", "severity": "high", "desc": ""}]}
+{"review_id": "777e39b8-e1ac-44b9-a370-f022786e5bd5", "has_issue": true, "issues": [{"feature_area": "other", "severity": "low", "desc": "App functionality"}]}
+{"review_id": "10ab4d2a-ea7c-474a-85f9-0927c230190e", "has_issue": true, "issues": [{"feature_area": "monetization", "severity": "high", "desc": ""}]}
+{"review_id": "9566faa4-9b1a-416b-a39f-9a3a57ec28a3", "has_issue": false, "issues": []}
+{"review_id": "424981e6-5b3a-461c-8db4-d6b9efa0326f", "has_issue": true, "issues": [{"feature_area": "core_listening", "severity": "low", "desc": ""}]}
+{"review_id": "988f6dfd-fe25-4fbc-948b-2fb9012ccc5b", "has_issue": false, "issues": []}
+{"review_id": "f0f8c9ef-01b1-4043-be7f-1a31afb9b1db", "has_issue": false, "issues": []}
+{"review_id": "e2c6f451-22f8-4f26-95ae-83331082ddc5", "has_issue": true, "issues": [{"feature_area": "other", "severity": "high", "desc": "App functionality"}]}
+{"review_id": "0b355d38-da36-4d05-8b93-c370e89878c3", "has_issue": true, "issues": [{"feature_area": "monetization", "severity": "high", "desc": ""}]}
+{"review_id": "77b8f5c9-b55c-4a0f-8665-25bc1c977a31", "has_issue": true, "issues": [{"feature_area": "discovery", "severity": "low", "desc": ""}]}
+{"review_id": "973d6069-f41d-4e47-ab3e-bf77aa22bd6e", "has_issue": true, "issues": [{"feature_area": "account", "severity": "low", "desc": ""}]}
+{"review_id": "097babf1-d983-4bf8-a94c-48c472115349", "has_issue": true, "issues": [{"feature_area": "monetization", "severity": "high", "desc": ""}]}
+{"review_id": "257f017d-7bcd-4947-908d-d529fa16d4bd", "has_issue": true, "issues": [{"feature_area": "other", "severity": "medium", "desc": "App functionality"}]}
+{"review_id": "959e9646-91d1-4a70-b16c-33131686fe93", "has_issue": true, "issues": [{"feature_area": "monetization", "severity": "high", "desc": ""}]}
+{"review_id": "a066c7fd-ff8f-42ec-88c2-b5f8b546ede2", "has_issue": true, "issues": [{"feature_area": "core_listening", "severity": "high", "desc": "App functionality"}]}
+{"review_id": "8f8af53e-7191-411b-8618-eff5467efcb3", "has_issue": false, "issues": []}
+{"review_id": "fce2b759-24fa-447d-a8f2-e507ef1accbf", "has_issue": true, "issues": [{"feature_area": "other", "severity": "high", "desc": "App functionality"}]}
