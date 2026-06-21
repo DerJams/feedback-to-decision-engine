@@ -14,19 +14,32 @@ Score formula (per config/weights.yaml):
           + w_fit  * strategic_fit
 
 where:
-- frequency_norm  = cluster.size / max(cluster.size over all clusters)  in [0, 1]
+- frequency_norm  = log(1 + cluster.size) / log(1 + max_size_among_ranked)  in [0, 1]
 - severity_norm   = mean(severity_scale[m.severity] for m in members) / max(severity_scale)  in [~1/3, 1]
 - strategic_fit   = sum(count_in_area * strategic_fit[area]) / cluster.size  in [0, 1]
+
+Frequency is log-scaled because cluster sizes are heavy-tailed (the top cluster
+is ~3x the next and the floor is ~7-70x smaller). Linear min-max squashes the
+mid-tier near zero and lets severity dominate every rank below #1; the log
+compresses the head and spreads the body so volume actually differentiates.
 
 The severity numeric scale is read from config/weights.yaml (`severity_scale`)
 - NOT hardcoded - so adjusting how harshly "high" is weighted vs "medium" is a
 config edit, not a code change.
+
+Volume floor: clusters below `score.ranking_min_size` (config/run.yaml) are
+excluded from the ranked output entirely. Clustering still keeps min_cluster_size
+at 3 so small clusters are visible in clusters.jsonl for inspection, but a
+3-member cluster floating into a "top opportunity" rank would sink the brief's
+credibility. Normalization happens AFTER the floor so a single huge cluster
+beyond the rest doesn't crush the ranked tier on the way back down.
 
 LOCAL ONLY. No API calls.
 """
 from __future__ import annotations
 
 import json
+import math
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -54,6 +67,7 @@ for _stream in (sys.stdout, sys.stderr):
 class ScoreConfig:
     input_path: Path
     output_path: Path
+    ranking_min_size: int
     weights: dict[str, float]
     severity_scale: dict[str, float]
     strategic_fit: dict[str, float]
@@ -69,6 +83,7 @@ def load_score_config(
     return ScoreConfig(
         input_path=REPO_ROOT / sc["input_path"],
         output_path=REPO_ROOT / sc["output_path"],
+        ranking_min_size=int(sc["ranking_min_size"]),
         weights={k: float(v) for k, v in w_raw["weights"].items()},
         severity_scale={k: float(v) for k, v in w_raw["severity_scale"].items()},
         strategic_fit={k: float(v) for k, v in w_raw["strategic_fit"].items()},
@@ -124,26 +139,35 @@ def score_clusters(
     weights: dict[str, float],
     severity_scale: dict[str, float],
     strategic_fit: dict[str, float],
+    ranking_min_size: int = 1,
 ) -> list[dict]:
-    """Return clusters annotated with a score + per-component breakdown.
+    """Return ranked clusters annotated with a score + per-component breakdown.
 
     All three components are normalized into [0, 1] before weighting so the
     weights in weights.yaml mean what they read like - "frequency is worth 40%
-    of the score" actually corresponds to a 0.40 max contribution.
+    of the score" actually corresponds to a 0.40 max contribution. Frequency
+    uses log normalization (see module docstring) so the heavy-tailed cluster
+    size distribution doesn't collapse mid-tier frequencies to ~0.
+
+    Clusters with size < ranking_min_size are dropped before normalization, so
+    a single outsized cluster beyond the floor doesn't drag the ranked-tier
+    frequency norm back down toward zero.
     """
-    if not clusters:
+    eligible = [c for c in clusters if c["size"] >= ranking_min_size]
+    if not eligible:
         return []
 
-    max_size = max(c["size"] for c in clusters)
+    max_size = max(c["size"] for c in eligible)
     max_severity = max(severity_scale.values())
+    log_denom = math.log(1 + max_size)
 
     w_freq = weights["frequency"]
     w_sev = weights["severity"]
     w_fit = weights["strategic_fit"]
 
     scored: list[dict] = []
-    for c in clusters:
-        freq_raw = c["size"] / max_size
+    for c in eligible:
+        freq_raw = math.log(1 + c["size"]) / log_denom if log_denom > 0 else 0.0
         sev_raw = mean_severity(c, severity_scale)
         sev_norm = sev_raw / max_severity if max_severity else 0.0
         fit_raw = strategic_fit_for_cluster(c, strategic_fit)
@@ -162,7 +186,7 @@ def score_clusters(
                 "score": total,
                 "breakdown": {
                     "frequency": {
-                        "raw": freq_raw,
+                        "normalized": freq_raw,
                         "weight": w_freq,
                         "contribution": freq_contrib,
                     },
@@ -199,7 +223,7 @@ def print_top(scored: list[dict], n: int = 15) -> None:
     )
     for i, t in enumerate(scored[:n], start=1):
         b = t["breakdown"]
-        freq_cell = f"{b['frequency']['raw']:.2f}->{b['frequency']['contribution']:+.3f}"
+        freq_cell = f"{b['frequency']['normalized']:.2f}->{b['frequency']['contribution']:+.3f}"
         sev_cell = (
             f"{b['severity']['raw_mean']:.2f}"
             f"({b['severity']['normalized']:.2f})"
@@ -212,9 +236,9 @@ def print_top(scored: list[dict], n: int = 15) -> None:
             f"{fit_cell:>13}   {t['label']!r}"
         )
     print(
-        "\nLegend: freq = size/max_size -> weighted contribution; "
-        "sev = mean_raw(scale)(normalized) -> weighted contribution; "
-        "fit = weighted_mean_of_feature_area_fit -> weighted contribution."
+        "\nLegend: freq = log(1+size)/log(1+max_size) -> weighted contribution; "
+        "sev = mean_raw(scale)(normalized_to_max_scale) -> weighted contribution; "
+        "fit = weighted_mean_of_per_area_strategic_fit -> weighted contribution."
     )
 
 
@@ -222,6 +246,7 @@ def main() -> int:
     config = load_score_config()
     clusters = read_jsonl(config.input_path)
     print(f"Loaded {len(clusters)} clusters from {config.input_path.relative_to(REPO_ROOT)}")
+    print(f"Ranking floor (score.ranking_min_size): size >= {config.ranking_min_size}")
     print("Weights (config/weights.yaml):")
     for k, v in config.weights.items():
         print(f"  {k:<15} {v}")
@@ -233,13 +258,19 @@ def main() -> int:
         weights=config.weights,
         severity_scale=config.severity_scale,
         strategic_fit=config.strategic_fit,
+        ranking_min_size=config.ranking_min_size,
     )
 
+    dropped = len(clusters) - len(scored)
     config.output_path.parent.mkdir(parents=True, exist_ok=True)
     with config.output_path.open("w", encoding="utf-8") as fh:
         for row in scored:
             fh.write(json.dumps(row, ensure_ascii=False) + "\n")
-    print(f"\nWrote {len(scored)} ranked themes -> {config.output_path.relative_to(REPO_ROOT)}")
+    print(
+        f"\nWrote {len(scored)} ranked themes "
+        f"({dropped} excluded by ranking_min_size) "
+        f"-> {config.output_path.relative_to(REPO_ROOT)}"
+    )
 
     print_top(scored, n=15)
     return 0

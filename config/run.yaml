@@ -64,6 +64,13 @@ score:
   input_path: data/clusters.jsonl
   output_path: data/scored_themes.jsonl
 
+  # Volume floor for ranking only. Clustering keeps min_cluster_size at 3 so
+  # the data carries small clusters for inspection, but the ranked themes file
+  # excludes anything below this size. A 3-member cluster doesn't belong in a
+  # prioritized brief - it would let max-severity tiny clusters float into the
+  # top N on severity weighting alone.
+  ranking_min_size: 10
+
 brief:
   output_path: brief/opportunity_brief.md
   prd_output_path: brief/top_theme_prd.md

@@ -21,11 +21,26 @@ severity_scale:
 # Per-feature-area strategic fit multiplier in [0, 1]. Tune to reflect your
 # read of where the product team should be spending cycles. The README's
 # "what I'd do" section reasons from these numbers, so they should match how
-# you would actually argue priorities in a room.
+# you would actually argue priorities in a room. Each rationale below is the
+# one-liner you'd defend the number with.
 strategic_fit:
+  # Playback IS the product. If basic listening breaks, nothing else matters.
   core_listening: 1.0
+  # Adjacent core. SoundCloud's identity is finding new tracks; if discovery
+  # is degraded, retention follows.
   discovery: 0.8
+  # Differentiator (likes / reposts / follows / comments) but not the reason
+  # someone installs the app - real but second-order.
   social: 0.6
+  # Weighted lower because the dominant monetization complaint - "too many ads"
+  # on the free tier - is a direct revenue lever, not a defect. Reducing ad load
+  # trades measurable ad revenue for retention gains that are hard to attribute,
+  # so even a top-reach monetization theme is a lower-confidence opportunity to
+  # actually act on. The reach is real; the recommended action is not obvious.
   monetization: 0.5
+  # Hygiene. Sign-in, billing, and profile must work but are not growth
+  # drivers - only urgent when actually broken.
   account: 0.4
+  # Catch-all bucket. Heterogeneous by definition and typically out of scope
+  # for the focused product bets the brief is meant to recommend.
   other: 0.3
