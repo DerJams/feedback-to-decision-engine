@@ -64,6 +64,10 @@ flowchart LR
 - **PRD numeric targets are TBD, not invented.** Every target in the goals and success-metrics section reads "TBD (set with data/eng after baseline)."
 - **The PRD does not claim a solution.** Each solution-direction item is tagged "(Draft, needs eng discovery)." Hypotheses are framed as things eng discovery should rule in or out.
 
+## Validation
+
+The extraction stage is checked against a 50-review stratified blind hand-labeled set (`evals/`). Review-level detection agrees with the labels 94% of the time (n=50) with zero misses. Every one of the 61 model-extracted issues traced to real review text, so there are no hallucinated issues; the apparent precision gap is labeling granularity, since the gold captured one issue per review while the model decomposes multi-issue reviews. Feature_area agreement is 68% among matched issues, with the residual driven by two complaint types the schema has no category for, app-stability and downloads. Full numbers and failure modes: [`evals/results.md`](evals/results.md).
+
 ## Limitations
 
 - **A single similarity threshold cannot fit every concept's natural granularity.** The 0.45 cosine cut consolidates the long-tail ad cluster cleanly but leaves two low-rank clusters carrying directionally mixed concerns: theme 13 (`same songs repeat frequently`) blends "songs auto-repeating" with "cannot manually repeat"; theme 18 (`missing original artist information`) blends missing metadata with obscure-artist catalog complaints. The render-time `centroid_sim` floor reduces this but cannot rewrite the cluster boundary; the brief states this plainly in its "Method and limitations" note.
