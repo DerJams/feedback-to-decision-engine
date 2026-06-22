@@ -1,21 +1,25 @@
 """Pull and normalize SoundCloud Android reviews from Google Play.
 
 Run from the repo root:
-    python -m ingest.soundcloud --count 3000
+    python -m ingest.soundcloud
 
-Output: data/soundcloud_reviews.jsonl (one normalized review per line),
-followed by a printed summary (total, rating distribution, date range) and
-three sample records.
+Date-bounded: pages newest-first and stops once a review crosses the
+`ingest.lookback_days` cutoff in config/run.yaml (no fixed count cap). Each
+record is tagged `platform: "android"` so the downstream combined file can
+report per-platform counts.
+
+Output: data/soundcloud_reviews_android.jsonl (per-platform), then
+`python -m ingest.combine` merges it with the iOS pull into
+data/soundcloud_reviews.jsonl.
 """
 from __future__ import annotations
 
-import argparse
 import json
 import sys
 import time
 from collections import Counter
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Iterable, Iterator
 
@@ -26,87 +30,128 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = REPO_ROOT / "config" / "run.yaml"
 PAGE_SIZE = 200
 
+for _stream in (sys.stdout, sys.stderr):
+    _reconfigure = getattr(_stream, "reconfigure", None)
+    if _reconfigure is not None:
+        try:
+            _reconfigure(encoding="utf-8", errors="backslashreplace")
+        except (OSError, ValueError):
+            pass
+
 
 @dataclass(frozen=True)
-class IngestConfig:
+class AndroidIngestConfig:
     app_id: str
-    default_count: int
-    page_delay_seconds: float
     lang: str
     country: str
     output_path: Path
+    page_delay_seconds: float
+    lookback_days: int
 
 
-def load_config(path: Path = CONFIG_PATH) -> IngestConfig:
+def load_config(path: Path = CONFIG_PATH) -> AndroidIngestConfig:
     with path.open("r", encoding="utf-8") as fh:
         raw = yaml.safe_load(fh)
     ing = raw["ingest"]
-    return IngestConfig(
-        app_id=ing["app_id"],
-        default_count=int(ing["default_count"]),
+    android = ing["android"]
+    return AndroidIngestConfig(
+        app_id=android["app_id"],
+        lang=android["lang"],
+        country=android["country"],
+        output_path=REPO_ROOT / android["output_path"],
         page_delay_seconds=float(ing["page_delay_seconds"]),
-        lang=ing["lang"],
-        country=ing["country"],
-        output_path=REPO_ROOT / ing["output_path"],
+        lookback_days=int(ing["lookback_days"]),
     )
 
 
-def normalize(raw: dict) -> dict | None:
-    """Map a raw scraper record to our schema, or None if it should be dropped."""
+def to_utc(at) -> datetime | None:
+    """google-play-scraper's `at` is a naive datetime (UTC). Make it
+    timezone-aware so it can be compared against an aware cutoff. Returns
+    None if the value is missing or the wrong type.
+    """
+    if not isinstance(at, datetime):
+        return None
+    if at.tzinfo is None:
+        return at.replace(tzinfo=timezone.utc)
+    return at.astimezone(timezone.utc)
+
+
+def normalize(raw: dict, country: str) -> dict | None:
+    """Map a raw scraper record to the project schema. Returns None if it
+    should be dropped (no text, no timestamp).
+
+    `platform` and `country` are added so the combined file can report
+    per-platform / per-market volumes without an extra join.
+    """
     text = (raw.get("content") or "").strip()
     if not text:
         return None
-    at = raw.get("at")
-    timestamp = at.isoformat() if isinstance(at, datetime) else (at or "")
+    at = to_utc(raw.get("at"))
+    if at is None:
+        return None
     return {
         "review_id": raw.get("reviewId"),
         "rating": raw.get("score"),
         "text": text,
-        "timestamp": timestamp,
+        "timestamp": at.isoformat(),
         "app_version": raw.get("reviewCreatedVersion") or raw.get("appVersion") or "",
+        "platform": "android",
+        "country": country,
     }
 
 
-def fetch(config: IngestConfig, target_count: int) -> Iterator[dict]:
-    """Yield normalized, deduped reviews until target_count or the feed runs out."""
+def fetch(config: AndroidIngestConfig, cutoff: datetime) -> Iterator[dict]:
+    """Yield normalized reviews newest-first, stopping when any review's
+    timestamp drops below `cutoff`. Within a page we keep yielding the
+    in-window records and break as soon as we see an out-of-window one,
+    since `Sort.NEWEST` is monotonically decreasing in timestamp.
+    """
     seen: set[str] = set()
     token = None
     page = 0
     yielded = 0
-    while yielded < target_count:
+    while True:
         page += 1
-        request_size = min(PAGE_SIZE, target_count - yielded)
         batch, token = reviews(
             config.app_id,
             lang=config.lang,
             country=config.country,
             sort=Sort.NEWEST,
-            count=request_size,
+            count=PAGE_SIZE,
             continuation_token=token,
         )
         if not batch:
             print(f"  page {page}: empty batch, stopping")
             break
         kept = 0
+        crossed_cutoff = False
         for raw in batch:
             rid = raw.get("reviewId")
             if not rid or rid in seen:
                 continue
-            normalized = normalize(raw)
+            at = to_utc(raw.get("at"))
+            if at is None:
+                continue
+            if at < cutoff:
+                crossed_cutoff = True
+                break
+            normalized = normalize(raw, country=config.country)
             if normalized is None:
                 continue
             seen.add(rid)
             yielded += 1
             kept += 1
             yield normalized
-            if yielded >= target_count:
-                break
-        print(f"  page {page}: pulled {len(batch)}, kept {kept}, total {yielded}/{target_count}")
+        print(
+            f"  page {page}: pulled {len(batch)}, kept {kept}, "
+            f"total {yielded}{' (cutoff reached)' if crossed_cutoff else ''}"
+        )
+        if crossed_cutoff:
+            break
         if token is None:
             print("  no continuation token returned - feed exhausted")
             break
-        if yielded < target_count:
-            time.sleep(config.page_delay_seconds)
+        time.sleep(config.page_delay_seconds)
 
 
 def write_jsonl(records: Iterable[dict], path: Path) -> int:
@@ -133,7 +178,7 @@ def summarize(records: list[dict]) -> None:
     earliest = min(timestamps) if timestamps else "(none)"
     latest = max(timestamps) if timestamps else "(none)"
     total = sum(ratings.values())
-    print("\n=== Pull summary ===")
+    print("\n=== Android pull summary ===")
     print(f"Total reviews: {len(records)}")
     print("Rating distribution:")
     for stars in (1, 2, 3, 4, 5):
@@ -147,38 +192,24 @@ def summarize(records: list[dict]) -> None:
     print(f"Date range: {earliest}  ->  {latest}")
 
 
-def print_samples(records: list[dict], n: int = 3) -> None:
-    print(f"\n=== {n} sample records ===")
-    for i, rec in enumerate(records[:n], start=1):
-        print(f"\n--- sample {i} ---")
-        text = rec.get("text", "")
-        if len(text) > 400:
-            text = text[:400].rstrip() + "..."
-        printable = {**rec, "text": text}
-        print(json.dumps(printable, ensure_ascii=False, indent=2))
-
-
-def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument(
-        "--count",
-        type=int,
-        default=None,
-        help="target review count (overrides ingest.default_count in run.yaml)",
-    )
-    args = parser.parse_args(argv)
-
+def main() -> int:
     config = load_config()
-    target = args.count if args.count is not None else config.default_count
-
-    print(f"Pulling up to {target} reviews for {config.app_id} (sort=newest)...")
-    print(f"  lang={config.lang}  country={config.country}  delay={config.page_delay_seconds}s")
-    written = write_jsonl(fetch(config, target), config.output_path)
-    print(f"\nWrote {written} reviews to {config.output_path.relative_to(REPO_ROOT)}")
+    cutoff = datetime.now(timezone.utc) - timedelta(days=config.lookback_days)
+    print(
+        f"Pulling SoundCloud Android reviews newest-first until cutoff "
+        f"{cutoff.isoformat()} (lookback_days={config.lookback_days})..."
+    )
+    print(
+        f"  app_id={config.app_id}  lang={config.lang}  country={config.country}  "
+        f"delay={config.page_delay_seconds}s"
+    )
+    written = write_jsonl(fetch(config, cutoff), config.output_path)
+    print(
+        f"\nWrote {written} reviews to {config.output_path.relative_to(REPO_ROOT)}"
+    )
 
     records = read_jsonl(config.output_path)
     summarize(records)
-    print_samples(records, n=3)
     return 0
 
 

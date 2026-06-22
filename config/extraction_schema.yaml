@@ -9,34 +9,25 @@
 fields:
   theme:
     type: string
-    description: >
-      Short noun phrase naming the user's concern. Specific enough to be
-      actionable, general enough to cluster across reviews. Lowercase, no
-      trailing punctuation. Examples of shape (not content): "<noun> <verb>s
-      after <event>", "missing <noun>", "<noun> on <surface>".
+    description: Short noun phrase naming the concern. Lowercase, no trailing punctuation.
   severity:
     type: enum
     values: [low, medium, high]
-    description: >
-      How much this issue degrades the user's experience as expressed in this
-      review. "high" = blocks core use or causes the user to consider leaving.
-      "medium" = repeated friction. "low" = minor annoyance.
+    description: high = blocks core use or risks user leaving. medium = repeated friction. low = minor annoyance.
   sentiment:
     type: enum
     values: [positive, neutral, negative]
-    description: The reviewer's affect toward the theme in this review.
+    description: Reviewer affect toward the theme.
   feature_area:
     type: enum
-    values: [core_listening, discovery, social, monetization, account, other]
-    description: >
-      Which surface of the product the theme touches. Use "other" rather than
-      forcing a fit.
+    values: [core_listening, discovery, social, monetization, account, stability, downloads, other]
+    description: |
+      Surface of the product. Use "other" rather than forcing a fit.
+      - stability: app crashes, freezes, force-closes, ANRs, hangs, overheating, or battery drain.
+      - downloads: offline playback, downloaded-track playback, download failures, files disappearing, or offline-mode issues.
   segment_hint:
     type: string
-    description: >
-      Free-text hint at the user segment if implied by the review (e.g.
-      "podcast listener", "creator", "free-tier", "long-time user"). Empty
-      string if not implied. Do not infer demographics from rating alone.
+    description: Free text. Empty unless the review implies a segment (e.g. "creator", "free-tier", "long-time user"). Do not infer from rating.
 
 extraction:
   max_issues_per_review: 4

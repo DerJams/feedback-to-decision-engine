@@ -2,12 +2,34 @@
 # Override any of these at the CLI in the module that consumes them.
 
 ingest:
-  app_id: com.soundcloud.android
-  default_count: 3000
+  # Date window applied to BOTH platforms. Pagination is newest-first and
+  # stops once a review crosses this cutoff, instead of capping by a fixed
+  # count. Applied to Android and iOS alike.
+  lookback_days: 90
   page_delay_seconds: 1.5
-  lang: en
-  country: us
+
+  # Combined, platform-tagged output. Each record carries `platform`
+  # ("android" | "ios"). This is the file the language filter and the brief
+  # dataset stats read downstream.
   output_path: data/soundcloud_reviews.jsonl
+
+  android:
+    app_id: com.soundcloud.android
+    lang: en
+    country: us
+    output_path: data/soundcloud_reviews_android.jsonl
+
+  ios:
+    # Resolved at runtime via the iTunes Search API; do not hardcode the
+    # numeric trackId. `expected_seller_prefix` disambiguates from copycat
+    # search hits ("Soundloud", etc.).
+    app_name: SoundCloud
+    expected_seller_prefix: SoundCloud
+    # Library caps each (app, country) pull at ~500 reviews, so pulling
+    # across several English markets gives more headroom and broader
+    # geographic coverage. trackId is global, so we resolve once and reuse.
+    countries: [us, gb, ca, au]
+    output_path: data/soundcloud_reviews_ios.jsonl
 
 # Applied after ingest, before extraction. country='us' above keeps the
 # US-storefront scope unchanged; this is purely about review text language.
@@ -28,15 +50,52 @@ language_filter:
   dropped_path: data/non_english_reviews.jsonl
 
 extract:
-  # Claude Haiku 4.5 via the Anthropic API. Tool-calling enforces the YAML
-  # schema's enums at the API boundary. The key lives in .env (ANTHROPIC_API_KEY).
-  model: claude-haiku-4-5
-  max_tokens: 1024
+  # Backend selector. Either provider enforces the YAML schema via tool /
+  # function calling at the API boundary; what changes is the SDK, the tool
+  # shape, and the pricing surface. Cache key includes provider+model so a
+  # switch never reuses extractions from the previous backend.
+  provider: cerebras   # anthropic | cerebras | groq
+
   temperature: 0.0
   cache_dir: data/extraction_cache
-  input_path: data/soundcloud_reviews_en.jsonl
+  # Balanced down-sample (~500 iOS + ~500 Android + any gold review_ids)
+  # built by `ingest/balance.py`. Points the full run at a corpus that fits
+  # under the Cerebras free-tier daily token budget.
+  input_path: data/soundcloud_reviews_en_balanced.jsonl
   output_path: data/extracted_issues.jsonl
   sample_size: 20   # for the stage-3 smoke test; full run ignores this
+
+  # Bounded parallelism + retry/backoff. The free-tier ceiling is unknown
+  # ahead of time, so we run a few in parallel and self-throttle to whatever
+  # the provider permits via exponential backoff with jitter on 429 / 5xx.
+  max_concurrency: 5
+  max_retries: 5
+  backoff_base_seconds: 1.0
+  backoff_max_seconds: 30.0
+
+  providers:
+    anthropic:
+      # Key: ANTHROPIC_API_KEY in .env.
+      model: claude-haiku-4-5
+      max_tokens: 1024
+    cerebras:
+      # Key: CEREBRAS_API_KEY in .env. OpenAI-shape function calling via
+      # cerebras-cloud-sdk; base URL is the SDK default.
+      # gpt-oss-120b is still served on the free tier and has tool/JSON
+      # structured-output support; keeping it as the project's original default.
+      model: gpt-oss-120b
+      # 512 instead of 1024: the extraction's structured output is small
+      # (~100-300 tokens), and the larger reservation was eating into the
+      # per-minute token bucket without ever being used.
+      max_tokens: 512
+    groq:
+      # Key: GROQ_API_KEY in .env. OpenAI-shape function calling via the
+      # `groq` SDK (base URL https://api.groq.com/openai/v1 is the SDK
+      # default). llama-3.3-70b-versatile is the live Llama 3.3 70B instruct
+      # model on Groq with tool-calling support (confirmed against the live
+      # /models endpoint).
+      model: llama-3.3-70b-versatile
+      max_tokens: 1024
 
 cluster:
   # Local-only embeddings (no API calls). all-MiniLM-L6-v2 is small (~80MB),

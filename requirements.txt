@@ -1,5 +1,8 @@
 anthropic
+cerebras-cloud-sdk
+groq
 google-play-scraper
+app-store-web-scraper
 lingua-language-detector
 pyyaml
 python-dotenv
