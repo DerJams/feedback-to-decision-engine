@@ -26,9 +26,17 @@ severity_scale:
 strategic_fit:
   # Playback IS the product. If basic listening breaks, nothing else matters.
   core_listening: 1.0
+  # "App doesn't work" is on par with "playback doesn't work" - if it crashes,
+  # freezes, or drains the battery, the user can't listen. Treated as a hygiene
+  # blocker at the same weight as core_listening.
+  stability: 1.0
   # Adjacent core. SoundCloud's identity is finding new tracks; if discovery
   # is degraded, retention follows.
   discovery: 0.8
+  # Adjacent core for mobile listening. Offline playback / downloads is the
+  # core listening surface for commutes and patchy-connection contexts; weighted
+  # like discovery rather than core_listening because it is a subset of users.
+  downloads: 0.8
   # Differentiator (likes / reposts / follows / comments) but not the reason
   # someone installs the app - real but second-order.
   social: 0.6
