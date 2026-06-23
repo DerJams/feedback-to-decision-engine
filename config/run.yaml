@@ -54,14 +54,14 @@ extract:
   # function calling at the API boundary; what changes is the SDK, the tool
   # shape, and the pricing surface. Cache key includes provider+model so a
   # switch never reuses extractions from the previous backend.
-  provider: cerebras   # anthropic | cerebras | groq
+  provider: anthropic   # anthropic | cerebras | groq
 
   temperature: 0.0
   cache_dir: data/extraction_cache
   # Balanced down-sample (~500 iOS + ~500 Android + any gold review_ids)
   # built by `ingest/balance.py`. Points the full run at a corpus that fits
   # under the Cerebras free-tier daily token budget.
-  input_path: data/soundcloud_reviews_en_balanced.jsonl
+  input_path: data/soundcloud_reviews_en.jsonl
   output_path: data/extracted_issues.jsonl
   sample_size: 20   # for the stage-3 smoke test; full run ignores this
 

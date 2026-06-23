@@ -53,6 +53,22 @@ RESULTS_PATH = REPO_ROOT / "evals" / "results.md"
 
 SEVERITY_INT = {"low": 1, "medium": 2, "high": 3}
 
+# Parent grouping for hierarchical feature_area accuracy. Strict accuracy
+# (exact enum match) is preserved; hierarchical accuracy gives credit when the
+# model and gold land in the same parent even if the child differs - relevant
+# because the original gold predates the stability/downloads child categories
+# and bucketed most of those into other/"App functionality".
+FEATURE_AREA_PARENT = {
+    "stability": "app_functionality",
+    "downloads": "app_functionality",
+    "core_listening": "app_functionality",
+    "account": "app_functionality",
+    "other": "app_functionality",
+    "monetization": "monetization",
+    "social": "social",
+    "discovery": "discovery",
+}
+
 
 def build_model_subset(review_ids: set[str]) -> list[dict]:
     """Filter the full extraction file to the labeling set's review_ids and
@@ -144,9 +160,12 @@ class Scoreboard:
     )
     n_model_issues: int = 0
     n_matched: int = 0
-    n_feature_area_correct: int = 0  # among matched pairs
+    n_feature_area_correct: int = 0  # strict: enum == enum
+    n_feature_area_parent_correct: int = 0  # hierarchical: same parent
     n_severity_exact: int = 0  # among matched pairs
     n_severity_within_one: int = 0  # among matched pairs
+    n_gold_total: int = 0  # gold rows loaded (may exceed n_reviews)
+    aged_out_ids: list[str] = field(default_factory=list)
 
 
 def render_results(board: Scoreboard) -> str:
@@ -168,8 +187,16 @@ def render_results(board: Scoreboard) -> str:
     lines.append("# Extraction eval results")
     lines.append("")
     lines.append(
-        f"_Generated {date.today().isoformat()} against {n} hand-labeled reviews._"
+        f"_Generated {date.today().isoformat()} against {n} hand-labeled "
+        f"reviews (gold set size: {board.n_gold_total}; "
+        f"{len(board.aged_out_ids)} aged out of the current 90-day ingest "
+        f"window and are not in the extraction snapshot)._"
     )
+    if board.aged_out_ids:
+        lines.append("")
+        lines.append("Aged-out gold review_ids (excluded from scoring):")
+        for rid in board.aged_out_ids:
+            lines.append(f"- `{rid}`")
     lines.append("")
     lines.append(f"## Review-level has_issue agreement (n = {n} reviews)")
     lines.append("")
@@ -194,8 +221,12 @@ def render_results(board: Scoreboard) -> str:
         f"| Precision (model issues matched to a gold issue) | {precision_line} |"
     )
     lines.append(
-        f"| Feature_area accuracy (of matched, n = {matched}) | "
+        f"| Feature_area accuracy - strict, exact enum (of matched, n = {matched}) | "
         f"{pct_line(board.n_feature_area_correct, matched)} |"
+    )
+    lines.append(
+        f"| Feature_area accuracy - hierarchical, same parent (of matched, n = {matched}) | "
+        f"{pct_line(board.n_feature_area_parent_correct, matched)} |"
     )
     lines.append(
         f"| Severity exact (of matched, n = {matched}) | "
@@ -204,6 +235,17 @@ def render_results(board: Scoreboard) -> str:
     lines.append(
         f"| Severity within-one (of matched, n = {matched}) | "
         f"{pct_line(board.n_severity_within_one, matched)} |"
+    )
+    lines.append("")
+    lines.append(
+        "_The gap between strict and hierarchical feature_area accuracy is "
+        "driven by reviews whose original gold label was bucketed into "
+        "other/\"App functionality\" - the model resolved many of those to "
+        "the finer `stability` and `downloads` categories that were added to "
+        "the schema after the gold was written. Parent map: "
+        "`app_functionality` = {stability, downloads, core_listening, "
+        "account, other}; `monetization`, `social`, `discovery` stand alone "
+        "(see `evals/score.py:FEATURE_AREA_PARENT`)._"
     )
     lines.append("")
     lines.append(
@@ -285,7 +327,11 @@ def main() -> int:
             )
         print("Scoring on the intersection only.")
 
-    board = Scoreboard(n_reviews=len(common_ids))
+    board = Scoreboard(
+        n_reviews=len(common_ids),
+        n_gold_total=len(gold_by_id),
+        aged_out_ids=sorted(only_in_gold),
+    )
     match_records: list[dict] = []
 
     for rid in sorted(common_ids):
@@ -307,6 +353,10 @@ def main() -> int:
             gfa = gold_issues[gi].get("feature_area")
             if mfa == gfa:
                 board.n_feature_area_correct += 1
+            m_parent = FEATURE_AREA_PARENT.get(mfa)
+            g_parent = FEATURE_AREA_PARENT.get(gfa)
+            if m_parent is not None and m_parent == g_parent:
+                board.n_feature_area_parent_correct += 1
             msev = model_issues[mi].get("severity")
             gsev = gold_issues[gi].get("severity")
             if msev == gsev:
