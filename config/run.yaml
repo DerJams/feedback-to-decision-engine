@@ -129,7 +129,3 @@ score:
   # prioritized brief - it would let max-severity tiny clusters float into the
   # top N on severity weighting alone.
   ranking_min_size: 10
-
-brief:
-  output_path: brief/opportunity_brief.md
-  prd_output_path: brief/top_theme_prd.md
